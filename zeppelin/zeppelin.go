@@ -1,6 +1,8 @@
 package zeppelin
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/cookiejar"
@@ -80,6 +82,28 @@ func (c *Client) ListNotebooks() (*http.Response, error) {
 	res, err = c.Get(targetURL.String())
 	if err != nil {
 		return nil, fmt.Errorf("could not get %s: %v", targetURL.String(), err)
+	}
+
+	if res.StatusCode == 500 {
+		return nil, fmt.Errorf("remote service experiencing remote server error")
+	}
+
+	return res, nil
+}
+
+// NewNotebook creates a new notebook
+func (c *Client) NewNotebook(newNote NewNoteRequestBody) (*http.Response, error) {
+	res, err := c.login()
+	if err != nil {
+		return nil, err
+	}
+
+	targetURL := urlWithPath("api/notebook", c.url)
+
+	b, err := json.Marshal(newNote)
+	res, err = c.Post(targetURL.String(), "application/json", bytes.NewReader(b))
+	if err != nil {
+		return nil, fmt.Errorf("could not post to %s: %v", targetURL.String(), err)
 	}
 
 	if res.StatusCode == 500 {
