@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -26,7 +28,7 @@ type actionFunc func(*zeppelin.Client) error
 func actions() map[string]actionFunc {
 	return map[string]actionFunc{
 		"list":     list,
-		"new-note": list,
+		"new-note": newNote,
 	}
 }
 
@@ -65,6 +67,38 @@ func printAll(r io.Reader) {
 
 func list(client *zeppelin.Client) error {
 	res, err := client.ListNotebooks()
+	if err != nil {
+		return err
+	}
+
+	log.Println("Logging response body")
+	printAll(res.Body)
+	defer res.Body.Close()
+
+	return nil
+}
+
+func newNote(client *zeppelin.Client) error {
+	fi, err := os.Stdin.Stat()
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	if fi.Mode()&os.ModeNamedPipe == 0 {
+		log.Fatalln(errors.New("standard input is not piped in"))
+	}
+
+	b, err := ioutil.ReadAll(os.Stdin)
+	if err != nil {
+		log.Fatalf("could not read from stdin: %v\n", err)
+	}
+	var note zeppelin.NewNoteRequestBody
+	err = json.Unmarshal(b, &note)
+	if err != nil {
+		log.Fatalf("could not unmarshal input: %v", err)
+	}
+
+	res, err := client.NewNotebook(note)
 	if err != nil {
 		return err
 	}
