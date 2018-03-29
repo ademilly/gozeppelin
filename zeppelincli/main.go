@@ -103,5 +103,7 @@ func main() {
 	}
 
 	log.Printf("Performing action %s\n", *action)
-	actions()[*action](client)
+	if err := actions()[*action](client); err != nil {
+		log.Fatalln(err)
+	}
 }
