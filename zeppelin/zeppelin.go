@@ -82,5 +82,9 @@ func (c *Client) ListNotebooks() (*http.Response, error) {
 		return nil, fmt.Errorf("could not get %s: %v", targetURL.String(), err)
 	}
 
+	if res.StatusCode == 500 {
+		return nil, fmt.Errorf("remote service experiencing remote server error")
+	}
+
 	return res, nil
 }
