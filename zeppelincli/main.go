@@ -40,21 +40,11 @@ func getKeys(m map[string]actionFunc) []string {
 	return keys
 }
 
-func retrieveCredentialsFromEnv() (credential, error) {
-	creds := credential{
+func retrieveCredentialsFromEnv() credential {
+	return credential{
 		username: os.Getenv(envUsername),
 		password: os.Getenv(envPassword),
 	}
-
-	if creds.username == "" {
-		return credential{}, fmt.Errorf("environment variable %s should be set", envUsername)
-	}
-
-	if creds.password == "" {
-		return credential{}, fmt.Errorf("environment variable %s should be set", envPassword)
-	}
-
-	return creds, nil
 }
 
 func printAll(r io.Reader) {
@@ -125,10 +115,7 @@ func main() {
 	}
 
 	log.Println("Retrieve credentials from environment variables")
-	user, err := retrieveCredentialsFromEnv()
-	if err != nil {
-		log.Fatalln(err)
-	}
+	user := retrieveCredentialsFromEnv()
 
 	log.Println("Creating new Zeppelin client")
 	client, err := zeppelin.NewClient(*hostname, user.username, user.password)
