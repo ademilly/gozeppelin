@@ -63,7 +63,7 @@ func list(client *zeppelin.Client) error {
 
 	b, err := json.MarshalIndent(notebooks.Body, "", "  ")
 	if err != nil {
-		log.Fatalf("could not format server response: %v", err)
+		return err
 	}
 
 	fmt.Println(string(b))
@@ -74,21 +74,21 @@ func list(client *zeppelin.Client) error {
 func newNote(client *zeppelin.Client) error {
 	fi, err := os.Stdin.Stat()
 	if err != nil {
-		log.Fatalln(err)
+		return err
 	}
 
 	if fi.Mode()&os.ModeNamedPipe == 0 {
-		log.Fatalln(errors.New("standard input is not piped in"))
+		return errors.New("standard input is not piped in")
 	}
 
 	b, err := ioutil.ReadAll(os.Stdin)
 	if err != nil {
-		log.Fatalf("could not read from stdin: %v\n", err)
+		return err
 	}
 	var note zeppelin.NewNoteRequestBody
 	err = json.Unmarshal(b, &note)
 	if err != nil {
-		log.Fatalf("could not unmarshal input: %v", err)
+		return err
 	}
 
 	res, err := client.NewNotebook(note)
@@ -126,11 +126,11 @@ func main() {
 	log.Println("Creating new Zeppelin client")
 	client, err := zeppelin.NewClient(*hostname, user.username, user.password)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalf("could not spawn new client: %v", err)
 	}
 
 	log.Printf("Performing action %s\n", *action)
 	if err := actions()[*action](client); err != nil {
-		log.Fatalln(err)
+		log.Fatalf("could not run action %s: %v", *action, err)
 	}
 }
