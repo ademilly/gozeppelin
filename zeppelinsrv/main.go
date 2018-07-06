@@ -1,9 +1,9 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"strings"
@@ -33,17 +33,17 @@ func list(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("could not connect to %s: %v", hostname, err), http.StatusInternalServerError)
 		return
 	}
-	resp, err := client.ListNotebooks()
+	notebooks, err := client.ListNotebooks()
 	if err != nil {
 		http.Error(w, fmt.Sprintf("could not list notebooks from %s: %v", hostname, err), http.StatusInternalServerError)
 		return
 	}
-	b, err := ioutil.ReadAll(resp.Body)
-	defer resp.Body.Close()
+
+	b, err := json.MarshalIndent(notebooks.Body, "", "  ")
 	if err != nil {
-		http.Error(w, fmt.Sprintf("could not read response from %s: %v", hostname, err), http.StatusInternalServerError)
-		return
+		http.Error(w, fmt.Sprintf("could not format response from %s: %v", hostname, err), http.StatusInternalServerError)
 	}
+
 	w.Write(b)
 }
 

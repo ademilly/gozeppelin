@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
@@ -71,24 +72,33 @@ func (c *Client) login() (*http.Response, error) {
 }
 
 // ListNotebooks lists notebooks
-func (c *Client) ListNotebooks() (*http.Response, error) {
+func (c *Client) ListNotebooks() (ListResponse, error) {
 	res, err := c.login()
 	if err != nil {
-		return nil, err
+		return ListResponse{}, err
 	}
 
 	targetURL := urlWithPath("api/notebook", c.url)
 
 	res, err = c.Get(targetURL.String())
 	if err != nil {
-		return nil, fmt.Errorf("could not get %s: %v", targetURL.String(), err)
+		return ListResponse{}, fmt.Errorf("could not get %s: %v", targetURL.String(), err)
 	}
 
 	if res.StatusCode == 500 {
-		return nil, fmt.Errorf("remote service experiencing remote server error")
+		return ListResponse{}, fmt.Errorf("remote service experiencing remote server error")
 	}
 
-	return res, nil
+	b, _ := ioutil.ReadAll(res.Body)
+	defer res.Body.Close()
+
+	var list ListResponse
+	err = json.Unmarshal(b, &list)
+	if err != nil {
+		return ListResponse{}, fmt.Errorf("could not unmarshal response: %v", err)
+	}
+
+	return list, nil
 }
 
 // NewNotebook creates a new notebook

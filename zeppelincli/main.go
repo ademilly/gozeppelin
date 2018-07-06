@@ -56,14 +56,17 @@ func printAll(r io.Reader) {
 }
 
 func list(client *zeppelin.Client) error {
-	res, err := client.ListNotebooks()
+	notebooks, err := client.ListNotebooks()
 	if err != nil {
 		return err
 	}
 
-	log.Println("Logging response body")
-	printAll(res.Body)
-	defer res.Body.Close()
+	b, err := json.MarshalIndent(notebooks.Body, "", "  ")
+	if err != nil {
+		log.Fatalf("could not format server response: %v", err)
+	}
+
+	fmt.Println(string(b))
 
 	return nil
 }
