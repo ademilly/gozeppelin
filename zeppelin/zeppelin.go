@@ -102,10 +102,10 @@ func (c *Client) ListNotebooks() (ListResponse, error) {
 }
 
 // NewNotebook creates a new notebook
-func (c *Client) NewNotebook(newNote NewNoteRequestBody) (*http.Response, error) {
+func (c *Client) NewNotebook(newNote NewNoteRequestBody) (StdResponse, error) {
 	res, err := c.login()
 	if err != nil {
-		return nil, err
+		return StdResponse{}, err
 	}
 
 	targetURL := urlWithPath("api/notebook", c.url)
@@ -113,12 +113,23 @@ func (c *Client) NewNotebook(newNote NewNoteRequestBody) (*http.Response, error)
 	b, err := json.Marshal(newNote)
 	res, err = c.Post(targetURL.String(), "application/json", bytes.NewReader(b))
 	if err != nil {
-		return nil, fmt.Errorf("could not post to %s: %v", targetURL.String(), err)
+		return StdResponse{}, fmt.Errorf("could not post to %s: %v", targetURL.String(), err)
 	}
 
 	if res.StatusCode == 500 {
-		return nil, fmt.Errorf("remote service experiencing remote server error")
+		return StdResponse{}, fmt.Errorf("remote service experiencing remote server error: %v", res.Status)
 	}
 
-	return res, nil
+	b, err = ioutil.ReadAll(res.Body)
+	defer res.Body.Close()
+	if err != nil {
+		return StdResponse{}, fmt.Errorf("could not read response: %v", err)
+	}
+	var response StdResponse
+	err = json.Unmarshal(b, response)
+	if err != nil {
+		return StdResponse{}, fmt.Errorf("could not unmarshal response: %v", err)
+	}
+
+	return response, nil
 }

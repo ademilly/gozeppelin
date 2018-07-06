@@ -96,9 +96,12 @@ func newNote(client *zeppelin.Client) error {
 		return err
 	}
 
-	log.Println("Logging response body")
-	printAll(res.Body)
-	defer res.Body.Close()
+	b, err = json.MarshalIndent(res, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(string(b))
 
 	return nil
 }

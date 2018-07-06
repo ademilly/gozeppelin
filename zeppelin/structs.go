@@ -12,3 +12,10 @@ type ListResponse struct {
 	Message string
 	Body    []Notebook
 }
+
+// StdResponse struct holds standard zeppelin response
+type StdResponse struct {
+	Status  string
+	Message string `json:",omitempty"`
+	Body    string `json:",omitempty"`
+}
