@@ -19,16 +19,21 @@ func usage(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(fmt.Sprintf(`
 endpoints:
   - list => list notebooks available on %s
+  - run  => run notebooks by IDs given as comma separated URL parameter notebookIDs
     `, hostname)))
 }
 
-func list(w http.ResponseWriter, r *http.Request) {
+func login(_ http.ResponseWriter, r *http.Request) (*zeppelin.Client, error) {
 	parameters := r.URL.Query()
 
 	username := strings.Join(parameters["username"], "")
 	password := strings.Join(parameters["password"], "")
 
-	client, err := zeppelin.NewClient(hostname, username, password)
+	return zeppelin.NewClient(hostname, username, password)
+}
+
+func list(w http.ResponseWriter, r *http.Request) {
+	client, err := login(w, r)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("could not connect to %s: %v", hostname, err), http.StatusInternalServerError)
 		return
@@ -42,6 +47,33 @@ func list(w http.ResponseWriter, r *http.Request) {
 	b, err := json.MarshalIndent(notebooks.Body, "", "  ")
 	if err != nil {
 		http.Error(w, fmt.Sprintf("could not format response from %s: %v", hostname, err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Write(b)
+}
+
+func run(w http.ResponseWriter, r *http.Request) {
+	client, err := login(w, r)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("could not connect to %s: %v", hostname, err), http.StatusInternalServerError)
+		return
+	}
+
+	parameters := r.URL.Query()
+	notebookIDs := strings.Split(strings.Join(parameters["notebookIDs"], ""), ",")
+
+	log.Println(notebookIDs)
+
+	res, err := client.RunNotebooks(notebookIDs)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("could not run all notebooks: %v", err), http.StatusPartialContent)
+	}
+
+	b, err := json.MarshalIndent(res, "", "  ")
+	if err != nil {
+		http.Error(w, fmt.Sprintf("could not format response from %s: %v", hostname, err), http.StatusInternalServerError)
+		return
 	}
 
 	w.Write(b)
@@ -57,6 +89,7 @@ func main() {
 
 	srv.HandleFunc("/", usage)
 	srv.HandleFunc("/list", list)
+	srv.HandleFunc("/run", run)
 
 	log.Printf("serving on %s", add)
 	if err := http.ListenAndServe(add, srv); err != nil {
