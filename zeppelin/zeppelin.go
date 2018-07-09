@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/cookiejar"
@@ -101,17 +102,15 @@ func (c *Client) ListNotebooks() (ListResponse, error) {
 	return list, nil
 }
 
-// NewNotebook creates a new notebook
-func (c *Client) NewNotebook(newNote NewNoteRequestBody) (StdResponse, error) {
-	res, err := c.login()
+func (c *Client) postrequest(url string, body io.Reader) (StdResponse, error) {
+	_, err := c.login()
 	if err != nil {
 		return StdResponse{}, err
 	}
 
-	targetURL := urlWithPath("api/notebook", c.url)
+	targetURL := urlWithPath(url, c.url)
 
-	b, err := json.Marshal(newNote)
-	res, err = c.Post(targetURL.String(), "application/json", bytes.NewReader(b))
+	res, err := c.Post(targetURL.String(), "application/json", body)
 	if err != nil {
 		return StdResponse{}, fmt.Errorf("could not post to %s: %v", targetURL.String(), err)
 	}
@@ -120,16 +119,45 @@ func (c *Client) NewNotebook(newNote NewNoteRequestBody) (StdResponse, error) {
 		return StdResponse{}, fmt.Errorf("remote service experiencing remote server error: %v", res.Status)
 	}
 
-	b, err = ioutil.ReadAll(res.Body)
+	b, err := ioutil.ReadAll(res.Body)
 	defer res.Body.Close()
 	if err != nil {
 		return StdResponse{}, fmt.Errorf("could not read response: %v", err)
 	}
 	var response StdResponse
-	err = json.Unmarshal(b, response)
+	err = json.Unmarshal(b, &response)
 	if err != nil {
 		return StdResponse{}, fmt.Errorf("could not unmarshal response: %v", err)
 	}
 
 	return response, nil
+}
+
+// NewNotebook creates a new notebook
+func (c *Client) NewNotebook(newNote NewNoteRequestBody) (StdResponse, error) {
+	b, err := json.Marshal(newNote)
+	if err != nil {
+		return StdResponse{}, fmt.Errorf("could not read input json: %v", err)
+	}
+	return c.postrequest("api/notebook", bytes.NewReader(b))
+}
+
+// RunNotebooks run notebooks in `notebookIDs []string`
+func (c *Client) RunNotebooks(notebookIDs []string) ([]StdResponse, error) {
+
+	responses := []StdResponse{}
+	for _, notebookID := range notebookIDs {
+		res, err := c.RunNotebook(notebookID)
+		responses = append(responses, res)
+		if err != nil {
+			return responses, fmt.Errorf("could not run notebook %s: %v", notebookID, err)
+		}
+	}
+
+	return responses, nil
+}
+
+// RunNotebook run notebook with ID `notebookID`
+func (c *Client) RunNotebook(notebookID string) (StdResponse, error) {
+	return c.postrequest(fmt.Sprintf("api/notebook/job/%s", notebookID), nil)
 }
