@@ -26,7 +26,7 @@ endpoints:
     `, hostname)))
 }
 
-func login(_ http.ResponseWriter, r *http.Request) (*zeppelin.Client, error) {
+func newClient(_ http.ResponseWriter, r *http.Request) (*zeppelin.Client, error) {
 	parameters := r.URL.Query()
 
 	username := strings.Join(parameters["username"], "")
@@ -36,11 +36,13 @@ func login(_ http.ResponseWriter, r *http.Request) (*zeppelin.Client, error) {
 }
 
 func list(w http.ResponseWriter, r *http.Request) {
-	client, err := login(w, r)
+	client, err := newClient(w, r)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("could not connect to %s: %v", hostname, err), http.StatusInternalServerError)
 		return
 	}
+
+	log.Printf("listing notebooks request from %s", r.RemoteAddr)
 	notebooks, err := client.ListNotebooks()
 	if err != nil {
 		http.Error(w, fmt.Sprintf("could not list notebooks from %s: %v", hostname, err), http.StatusInternalServerError)
@@ -57,7 +59,7 @@ func list(w http.ResponseWriter, r *http.Request) {
 }
 
 func run(w http.ResponseWriter, r *http.Request) {
-	client, err := login(w, r)
+	client, err := newClient(w, r)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("could not connect to %s: %v", hostname, err), http.StatusInternalServerError)
 		return
@@ -78,10 +80,11 @@ func run(w http.ResponseWriter, r *http.Request) {
 	parameters := r.URL.Query()
 	notebookIDs := strings.Split(strings.Join(parameters["notebookIDs"], ""), ",")
 
-	log.Printf("running %v", notebookIDs)
+	log.Printf("runnings notebooks %v request from %s", notebookIDs, r.RemoteAddr)
 	res, err := client.RunNotebooks(notebookIDs)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("could not run all notebooks: %v", err), http.StatusPartialContent)
+		return
 	}
 
 	b, err := json.MarshalIndent(res, "", "  ")
@@ -113,7 +116,7 @@ func main() {
 	srv := &http.Server{
 		Addr:        addr,
 		ReadTimeout: 5 * time.Second,
-		Handler:     http.TimeoutHandler(handler, 10*time.Second, "server not available for now, try later ;)"),
+		Handler:     http.TimeoutHandler(handler, 1*time.Minute, "server not available for now, try later ;)"),
 	}
 
 	log.Printf("serving on %s", addr)
