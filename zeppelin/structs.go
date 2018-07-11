@@ -1,7 +1,7 @@
 package zeppelin
 
-// Notebook struct represents minimal information on Notebook object
-type Notebook struct {
+// notebook struct represents minimal information on Notebook object
+type notebook struct {
 	Name string
 	ID   string
 }
@@ -10,7 +10,7 @@ type Notebook struct {
 type ListResponse struct {
 	Status  string
 	Message string
-	Body    []Notebook
+	Body    []notebook
 }
 
 // StdResponse struct holds standard zeppelin response
