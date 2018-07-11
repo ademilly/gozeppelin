@@ -161,3 +161,71 @@ func (c *Client) RunNotebooks(notebookIDs []string) ([]StdResponse, error) {
 func (c *Client) RunNotebook(notebookID string) (StdResponse, error) {
 	return c.postrequest(fmt.Sprintf("api/notebook/job/%s", notebookID), nil)
 }
+
+// GetNotePermission retrieves note permission for note `notebookID`
+func (c *Client) GetNotePermission(notebookID string) (PermissionResponse, error) {
+	res, err := c.login()
+	if err != nil {
+		return PermissionResponse{}, err
+	}
+
+	targetURL := urlWithPath(fmt.Sprintf("api/notebook/%s/permissions", notebookID), c.url)
+
+	res, err = c.Get(targetURL.String())
+	if err != nil {
+		return PermissionResponse{}, fmt.Errorf("could not get %s: %v", targetURL.String(), err)
+	}
+
+	if res.StatusCode == 500 {
+		return PermissionResponse{}, fmt.Errorf("remote service experiencing remote server error")
+	}
+
+	b, _ := ioutil.ReadAll(res.Body)
+	defer res.Body.Close()
+
+	var permissions PermissionResponse
+	err = json.Unmarshal(b, &permissions)
+	if err != nil {
+		return PermissionResponse{}, fmt.Errorf("could not unmarshal response: %v", err)
+	}
+
+	return permissions, nil
+}
+
+// SetNotePermission set permission `permission` on notebook `notebookID`
+func (c *Client) SetNotePermission(notebookID string, permission Permission) (StdResponse, error) {
+	_, err := c.login()
+	if err != nil {
+		return StdResponse{}, err
+	}
+
+	targetURL := urlWithPath(fmt.Sprintf("api/notebook/%s/permissions", notebookID), c.url)
+
+	b, err := json.Marshal(permission)
+	if err != nil {
+		return StdResponse{}, fmt.Errorf("could not marshal input json: %v", err)
+	}
+
+	request, err := http.NewRequest(http.MethodPut, targetURL.String(), bytes.NewReader(b))
+	res, err := c.Do(request)
+	if err != nil {
+		return StdResponse{}, fmt.Errorf("could not put to %s: %v", targetURL.String(), err)
+	}
+
+	if res.StatusCode == 500 {
+		return StdResponse{}, fmt.Errorf("remote service experiencing remote server error: %v", res.Status)
+	}
+
+	b, err = ioutil.ReadAll(res.Body)
+	defer res.Body.Close()
+	if err != nil {
+		return StdResponse{}, fmt.Errorf("could not read response: %v", err)
+	}
+	var response StdResponse
+	err = json.Unmarshal(b, &response)
+	if err != nil {
+		return StdResponse{}, fmt.Errorf("could not unmarshal response: %v", err)
+	}
+
+	return response, nil
+}
